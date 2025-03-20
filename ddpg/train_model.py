@@ -8,6 +8,8 @@ import gymnasium as gym
 env = gym.make("CartPole-v1", render_mode="human")
 observation, info = env.reset()
 
+print(info)
+
 episode_over = False
 while not episode_over:
     action = (
