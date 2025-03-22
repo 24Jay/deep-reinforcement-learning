@@ -74,7 +74,7 @@ for epoch in range(EPOCH):
     episode_reward = 0
     i = 0
     while not done:
-        action = ddpg.get_action(state, eval=True)
+        action = ddpg.get_action(state)
 
         next_state, reward, terminated, truncated, info = env.step(np.array(action))
         done = terminated or truncated
