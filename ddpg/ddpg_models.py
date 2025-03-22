@@ -104,11 +104,12 @@ class DDPGModel:
 
         if eval:
             return action
-        # 给动作添加噪声，增加探索
-        r = self.sigma * np.random.randn(1)
+        else:
+            # 给动作添加噪声，增加探索
+            r = self.sigma * np.random.randn(1)
 
-        # print(f"======{action=}, {r=}")
-        return action + r
+            # print(f"======{action=}, {r=}")
+            return action + r
 
     def soft_update(self, net, target_net, tau):
         for param, target_param in zip(net.parameters(), target_net.parameters()):
