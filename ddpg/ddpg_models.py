@@ -12,15 +12,17 @@ class Actor(nn.Module):
     def __init__(self, n_state: int, n_action: int, n_hidden: int = 64) -> None:
         super().__init__()
         self.fc1 = nn.Linear(n_state, n_hidden)
-        # self.fc2 = nn.Linear(n_hidden, n_hidden)
+        self.fc2 = nn.Linear(n_hidden, n_hidden)
         self.fc3 = nn.Linear(n_hidden, n_action)
-        # 删除self.relu = nn.ReLU()，因为我们在forward中直接使用F.relu()
 
     def forward(self, state):
-        # print(f"state dim must be 3: {state.shape=}")
+        # 确保输入state的维度正确
+        if len(state.shape) == 1:
+            state = state.unsqueeze(0)
         x = F.relu(self.fc1(state))
-        # x = F.relu(self.fc2(x))
+        x = F.relu(self.fc2(x))
         x = self.fc3(x)
+        # 将输出限制在[-2, 2]范围内
         return torch.tanh(x) * 2
 
 
@@ -33,15 +35,15 @@ class Critic(nn.Module):
         self.fc3 = nn.Linear(n_hidden, 1)
 
     def forward(self, state, action):
-        # print(f"state dim must be 3: {state=}, {action.shape=}")
-
-        x = torch.cat([state, action], dim=1)
+        # 确保输入维度正确
+        if len(state.shape) == 1:
+            state = state.unsqueeze(0)
+        if len(action.shape) == 1:
+            action = action.unsqueeze(0)
+        x = torch.cat([state, action], dim=2)
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
-        x = self.fc3(x)
-        # print(f"==============={state.shape=}, {action.shape=}, {x.shape=}")
-
-        return x
+        return self.fc3(x)
 
 
 class ReplayBuffer:
@@ -85,79 +87,94 @@ class DDPGModel:
 
         self.gamma = gamma
         self.tau = tau
-
-        # 高斯噪声，均值为0
         self.sigma = sigma
-
         self.device = "cpu"
-
         self.cnt = 0
 
     def get_action(self, state, eval=False):
+        state = torch.FloatTensor(state).to(self.device).view(1, -1)
+        # with torch.no_grad():
+        # action = self.actor(state)
+        # if not eval:
+        #     # 添加探索噪声
+        #     noise = torch.randn_like(action) * self.sigma
+        #     action = action + noise
 
-        state = torch.FloatTensor(state).to(self.device)
-        # print(f"state dim must be 3: {state.shape=}")
+        action = self.actor(state).item()
+        # 给动作添加噪声，增加探索
+        r = self.sigma * np.random.randn(1)
 
-        a1 = self.actor(state)
-        # print(f"============={a1=}")
-
-        if eval:
-            return a1.detach().numpy()
-        action = a1 + torch.randn(a1.shape) * self.sigma
-        # print(f"-------------{action.detach().numpy()=}")
-        # print(f"============={a1.item()=}, {action.item()=}")
-
-        return action.detach().numpy()
+        # print(f"======{action=}, {r=}")
+        return action + r
 
     def soft_update(self, net, target_net, tau):
         for param, target_param in zip(net.parameters(), target_net.parameters()):
             target_param.data.copy_(tau * param.data + (1 - tau) * target_param.data)
 
     def update(self, transition_dict):
-        state = torch.FloatTensor(transition_dict["states"]).to(self.device)
-        action = torch.FloatTensor(transition_dict["actions"]).to(self.device)
-        reward = (
-            torch.FloatTensor(transition_dict["rewards"]).to(self.device).view(-1, 1)
+        # 转换数据为tensor
+        # print(f"========={transition_dict["states"]=}")
+
+        state = torch.tensor(
+            np.array(transition_dict["states"]), dtype=torch.float32
+        ).view(-1, 1, 3)
+
+        # print(f"========={transition_dict["actions"]=}")
+        # print(f"========={np.array(transition_dict["actions"]).shape=}")
+
+        action = (
+            torch.tensor(np.array(transition_dict["actions"]), dtype=torch.float32)
+            .unsqueeze(0)
+            .reshape(-1, 1, 1)
         )
-        next_state = torch.FloatTensor(transition_dict["next_states"]).to(self.device)
-        done = torch.FloatTensor(transition_dict["dones"]).to(self.device).view(-1, 1)
+        reward = (
+            torch.FloatTensor(np.array(transition_dict["rewards"]))
+            .unsqueeze(0)
+            .reshape(-1, 1, 1)
+        )
+
+        next_state = torch.FloatTensor(np.array(transition_dict["next_states"])).view(
+            -1, 1, 3
+        )
+        done = (
+            torch.FloatTensor(np.array(transition_dict["dones"]))
+            .to(self.device)
+            .view(-1, 1, 1)
+        )
         # print(f"check type: {state.shape=}, {action.shape=}, {reward.shape=}, {next_state.shape=}, {done.shape=}")
         if torch.sum(done) > 0:
             # print(f"==============================={torch.sum(done)=}")
             pass
 
-        # update critic by MSE loss
-        next_q_value = self.critic_target(next_state, self.actor_target(next_state))
-        # print(f"check type: {next_state.shape=}, {action.shape=}")
-
+        # 更新critic
+        # with torch.no_grad():
+        next_action = self.actor_target(next_state)
+        next_q_value = self.critic_target(next_state, next_action)
         q_target = reward + self.gamma * next_q_value * (1 - done)
-        # q_target = q_target.view(-1, 1)
 
-        # print(f"shape: ")
-        # print(f"check type: {next_q_value.shape=}, {q_target.shape=}, {reward.shape=}")
+        current_q = self.critic(state, action)
+        critic_loss = F.mse_loss(current_q, q_target)
 
-        critic_loss = torch.mean(F.mse_loss(self.critic(state, action), q_target))
         self.critic_optimizer.zero_grad()
         critic_loss.backward()
-        # nn.utils.clip_grad_value_(self.critic.parameters(), clip_value=1)
-
         self.critic_optimizer.step()
 
-        # update actor by policy gradient loss
-        action_critics = self.critic(state, self.actor(state))
-        action_loss = -action_critics.mean()
-        # print(f"=====check type: {action_critics.shape=}, {action_loss=}")
+        # 更新actor
+        policy_action = self.actor(state)
+        action_loss = -self.critic(state, policy_action).mean()
 
         self.actor_optimizer.zero_grad()
         action_loss.backward()
+        # 对actor网络的梯度进行裁剪，防止梯度爆炸
+        # torch.nn.utils.clip_grad_norm_(self.actor.paramzseters(), max_norm=1.0)
         self.actor_optimizer.step()
 
-        # soft update
+        # 软更新目标网络
         self.soft_update(self.critic, self.critic_target, self.tau)
         self.soft_update(self.actor, self.actor_target, self.tau)
 
         self.cnt += 1
         if self.cnt % 1000 == 0:
             print(
-                f"{self.cnt=}, critic_loss: {critic_loss.item():.4f}, action_loss: {action_loss.item():.4f}, { self.tau:}"
+                f"{self.cnt=}, critic_loss: {critic_loss.item():.4f}, action_loss: {action_loss.item():.4f}, {self.tau:}"
             )

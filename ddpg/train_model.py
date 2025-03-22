@@ -7,38 +7,44 @@ from ddpg_models import DDPGModel, ReplayBuffer
 import matplotlib.pyplot as plt
 from torch.utils.tensorboard import SummaryWriter
 
-writer = SummaryWriter("./refinforcement/ddpg")
+import datetime
+
+writer = SummaryWriter(f"./ddpg/logs/{datetime.datetime.now()}")
 
 
 ENV_NAME = "MountainCarContinuous-v0"
 ENV_NAME = "Pendulum-v1"
-EPOCH = 2000
+EPOCH = 20000
 MAX_STEP = 10
 
 # env = gym.make(ENV_NAME, render_mode="human")
 env = gym.make(ENV_NAME)
 
 
-gamma = 0.99
-tau = 0.01
+gamma = 0.98
+tau = 0.005
 buffer_size = 10000
 min_buffer_size = 1000
 batch_size = 65
 
-LR_ACTOR = 1e-3
-LR_CRITIC = 1e-3
-sigma = 0.01
+LR_ACTOR = 3e-4
+LR_CRITIC = 3e-4
+sigma = 0.05
 print("action space:", env.action_space)
 print("state space:", env.observation_space)
 
 n_action = env.action_space.shape[0]
 n_state = env.observation_space.shape[0]
 
+epsilon = 1.0  # 初始探索率
+epsilon_min = 0.05  # 最小探索率
+epsilon_decay = 0.999  # 探索率衰减率
 
-random.seed(42)
-np.random.seed(42)
+
+# random.seed(42)
+# np.random.seed(42)
 # env.seed(0)
-torch.manual_seed(42)
+# torch.manual_seed(42)
 
 max_action = env.action_space.high[0]
 
@@ -59,28 +65,24 @@ ddpg = DDPGModel(
 )
 
 
-epsion = 0.05
-
 returns = []
 
 for epoch in range(EPOCH):
 
     done = False
-    state, _ = env.reset(seed=42)
+    state, _ = env.reset()
+    # state, _ = env.reset(seed=42)
     episode_reward = 0
     i = 0
     while not done:
         action = ddpg.get_action(state, eval=True)
-        if np.random.rand() < epsion:
-            action = env.action_space.sample()
-        else:
-            action = action
-        next_state, reward, terminated, truncated, info = env.step(action)
-        done = terminated or truncated
-        state = next_state
 
-        replay_buffer.push(state, action, reward, next_state, terminated)
+        next_state, reward, terminated, truncated, info = env.step(np.array(action))
+        done = terminated or truncated
+
+        replay_buffer.push(state, action, reward, next_state, done)
         episode_reward += reward
+        state = next_state
 
         if len(replay_buffer) > min_buffer_size:
             batch_samples = replay_buffer.sample(batch_size)
@@ -101,6 +103,7 @@ for epoch in range(EPOCH):
     print(f"# {epoch}, 平均奖励：{episode_reward}")
 
     writer.add_scalar("reward", episode_reward, epoch)
+    writer.add_scalar("epsilon", epsilon, epoch)
 
 
 # ddpg.save_model("ddpg_model.pth")
