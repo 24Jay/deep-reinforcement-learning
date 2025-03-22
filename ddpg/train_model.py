@@ -27,8 +27,8 @@ min_buffer_size = 1000
 batch_size = 65
 
 LR_ACTOR = 3e-4
-LR_CRITIC = 3e-4
-sigma = 0.05
+LR_CRITIC = 3e-3
+sigma = 0.01
 print("action space:", env.action_space)
 print("state space:", env.observation_space)
 

@@ -101,6 +101,9 @@ class DDPGModel:
         #     action = action + noise
 
         action = self.actor(state).item()
+
+        if eval:
+            return action
         # 给动作添加噪声，增加探索
         r = self.sigma * np.random.randn(1)
 
