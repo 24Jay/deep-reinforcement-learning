@@ -23,6 +23,7 @@ done = False
 
 while not done:
     action = ddpg.get_action(state, eval=True)
+    print(action)
     next_state, reward, terminated, truncated, info = env.step(action)
     # done = terminated
     done = terminated or truncated

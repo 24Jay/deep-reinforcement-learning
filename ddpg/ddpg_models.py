@@ -100,16 +100,16 @@ class DDPGModel:
         #     noise = torch.randn_like(action) * self.sigma
         #     action = action + noise
 
-        action = self.actor(state).item()
+        action = self.actor(state)
 
         if eval:
-            return action
+            return action.detach().numpy()
         else:
             # 给动作添加噪声，增加探索
             r = self.sigma * np.random.randn(1)
 
             # print(f"======{action=}, {r=}")
-            return action + r
+            return action.item() + r
 
     def soft_update(self, net, target_net, tau):
         for param, target_param in zip(net.parameters(), target_net.parameters()):
