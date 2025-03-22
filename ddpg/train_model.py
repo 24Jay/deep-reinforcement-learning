@@ -14,7 +14,7 @@ writer = SummaryWriter(f"./ddpg/logs/{datetime.datetime.now()}")
 
 ENV_NAME = "MountainCarContinuous-v0"
 ENV_NAME = "Pendulum-v1"
-EPOCH = 1000
+EPOCH = 500
 
 # env = gym.make(ENV_NAME, render_mode="human")
 env = gym.make(ENV_NAME)
