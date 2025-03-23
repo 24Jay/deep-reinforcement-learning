@@ -13,7 +13,7 @@ writer = SummaryWriter(f"./ddpg/logs/{datetime.datetime.now()}")
 
 
 ENV_NAME = "MountainCarContinuous-v0"
-ENV_NAME = "Pendulum-v1"
+# ENV_NAME = "Pendulum-v1"
 EPOCH = 500
 
 # env = gym.make(ENV_NAME, render_mode="human")
@@ -109,7 +109,7 @@ for epoch in range(EPOCH):
 
 # plt.plot(returns)
 # plt.show()
-torch.save(ddpg, "ddpg_pendulum.pth")
+torch.save(ddpg, f"ddpg_{ENV_NAME}.pth")
 
 
 env.close()

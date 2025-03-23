@@ -20,11 +20,15 @@ ddpg = torch.load("ddpg_pendulum.pth", weights_only=False)
 state, _ = env.reset()
 
 done = False
-
+r = 0
+i = 0
 while not done:
     action = ddpg.get_action(state, eval=True)
-    print(action)
+    # print(action)
     next_state, reward, terminated, truncated, info = env.step(action)
     # done = terminated
     done = terminated or truncated
     state = next_state
+    r += reward
+    i += 1
+    print(f"#{i*"#"}, {r=}, {reward=}")

@@ -93,13 +93,6 @@ class DDPGModel:
 
     def get_action(self, state, eval=False):
         state = torch.FloatTensor(state).to(self.device).view(1, -1)
-        # with torch.no_grad():
-        # action = self.actor(state)
-        # if not eval:
-        #     # 添加探索噪声
-        #     noise = torch.randn_like(action) * self.sigma
-        #     action = action + noise
-
         action = self.actor(state)
 
         if eval:
@@ -107,8 +100,6 @@ class DDPGModel:
         else:
             # 给动作添加噪声，增加探索
             r = self.sigma * np.random.randn(1)
-
-            # print(f"======{action=}, {r=}")
             return action.item() + r
 
     def soft_update(self, net, target_net, tau):
@@ -116,15 +107,9 @@ class DDPGModel:
             target_param.data.copy_(tau * param.data + (1 - tau) * target_param.data)
 
     def update(self, transition_dict):
-        # 转换数据为tensor
-        # print(f"========={transition_dict["states"]=}")
-
         state = torch.tensor(
             np.array(transition_dict["states"]), dtype=torch.float32
         ).view(-1, 1, 3)
-
-        # print(f"========={transition_dict["actions"]=}")
-        # print(f"========={np.array(transition_dict["actions"]).shape=}")
 
         action = (
             torch.tensor(np.array(transition_dict["actions"]), dtype=torch.float32)
@@ -145,10 +130,6 @@ class DDPGModel:
             .to(self.device)
             .view(-1, 1, 1)
         )
-        # print(f"check type: {state.shape=}, {action.shape=}, {reward.shape=}, {next_state.shape=}, {done.shape=}")
-        if torch.sum(done) > 0:
-            # print(f"==============================={torch.sum(done)=}")
-            pass
 
         # 更新critic
         # with torch.no_grad():
