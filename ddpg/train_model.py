@@ -3,7 +3,7 @@ import random
 import torch
 import gymnasium as gym
 import os
-from ddpg_models import DDPGModel, ReplayBuffer
+from ddpg_model_general import DDPGModel, ReplayBuffer
 import matplotlib.pyplot as plt
 from torch.utils.tensorboard import SummaryWriter
 
@@ -13,8 +13,8 @@ writer = SummaryWriter(f"./ddpg/logs/{datetime.datetime.now()}")
 
 
 ENV_NAME = "MountainCarContinuous-v0"
-# ENV_NAME = "Pendulum-v1"
-EPOCH = 500
+ENV_NAME = "Pendulum-v1"
+EPOCH = 200
 
 # env = gym.make(ENV_NAME, render_mode="human")
 env = gym.make(ENV_NAME)
@@ -26,25 +26,14 @@ buffer_size = 10000
 min_buffer_size = 1000
 batch_size = 65
 
-LR_ACTOR = 3e-4
-LR_CRITIC = 3e-3
+LR_ACTOR = 5e-4
+LR_CRITIC = 5e-4
 sigma = 0.01
 print("action space:", env.action_space)
 print("state space:", env.observation_space)
 
 n_action = env.action_space.shape[0]
 n_state = env.observation_space.shape[0]
-
-epsilon = 1.0  # 初始探索率
-epsilon_min = 0.05  # 最小探索率
-epsilon_decay = 0.999  # 探索率衰减率
-
-
-# random.seed(42)
-# np.random.seed(42)
-# env.seed(0)
-# torch.manual_seed(42)
-
 max_action = env.action_space.high[0]
 
 print(f"max: {max_action}")
@@ -55,6 +44,7 @@ replay_buffer = ReplayBuffer(capacity=buffer_size)
 ddpg = DDPGModel(
     n_state,
     n_action,
+    action_max=max_action,
     n_hidden=64,
     sigma=sigma,
     lr_actor=LR_ACTOR,
@@ -95,20 +85,14 @@ for epoch in range(EPOCH):
             }
             ddpg.update(transition_dict)
         i += 1
-    # print("*"*i, i, reward)
 
     returns.append(episode_reward)
 
     print(f"# {epoch}, 平均奖励：{episode_reward}")
 
     writer.add_scalar("reward", episode_reward, epoch)
-    writer.add_scalar("epsilon", epsilon, epoch)
 
 
-# ddpg.save_model("ddpg_model.pth")
-
-# plt.plot(returns)
-# plt.show()
 torch.save(ddpg, f"ddpg_{ENV_NAME}.pth")
 
 

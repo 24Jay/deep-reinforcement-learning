@@ -9,11 +9,15 @@ import random
 
 class Actor(nn.Module):
 
-    def __init__(self, n_state: int, n_action: int, n_hidden: int = 64) -> None:
+    def __init__(
+        self, n_state: int, n_action: int, action_max: int = 1, n_hidden: int = 64
+    ) -> None:
         super().__init__()
         self.fc1 = nn.Linear(n_state, n_hidden)
         self.fc2 = nn.Linear(n_hidden, n_hidden)
         self.fc3 = nn.Linear(n_hidden, n_action)
+
+        self.action_max = action_max
 
     def forward(self, state):
         # 确保输入state的维度正确
@@ -23,7 +27,7 @@ class Actor(nn.Module):
         x = F.relu(self.fc2(x))
         x = self.fc3(x)
         # 将输出限制在[-2, 2]范围内
-        return torch.tanh(x) * 1
+        return torch.tanh(x) * self.action_max
 
 
 class Critic(nn.Module):
@@ -67,6 +71,7 @@ class DDPGModel:
         self,
         n_state: int,
         n_action: int,
+        action_max: int = 1,
         n_hidden: int = 64,
         lr_actor: float = 0.001,
         lr_critic: float = 0.001,
@@ -75,7 +80,7 @@ class DDPGModel:
         sigma: float = 0.1,
     ) -> None:
         self.actor = Actor(n_state, n_action, n_hidden)
-        self.actor_target = Actor(n_state, n_action, n_hidden)
+        self.actor_target = Actor(n_state, n_action, action_max, n_hidden)
         self.actor_target.load_state_dict(self.actor.state_dict())
 
         self.critic = Critic(n_state, n_action, n_hidden)
