@@ -11,12 +11,7 @@ import datetime
 ENV_NAME = "Pendulum-v1"
 ENV_NAME = "MountainCarContinuous-v0"
 
-EPOCH = 1000
-
 env = gym.make(ENV_NAME, render_mode="human")
-
-
-# ddpg = torch.load("ddpg_pendulum.pth", weights_only=False)
 ddpg = torch.load(f"ddpg_{ENV_NAME}.pth", weights_only=False)
 
 # ddpg.eval()

@@ -13,8 +13,8 @@ writer = SummaryWriter(f"./ddpg/logs/{datetime.datetime.now()}")
 
 
 ENV_NAME = "MountainCarContinuous-v0"
-ENV_NAME = "Pendulum-v1"
-EPOCH = 200
+# ENV_NAME = "Pendulum-v1"
+EPOCH = 100
 
 # env = gym.make(ENV_NAME, render_mode="human")
 env = gym.make(ENV_NAME)
@@ -103,9 +103,12 @@ writer.close()
 env = gym.make(ENV_NAME, render_mode="human")
 
 env.reset()
-
+total_return = 0
 while not done:
     action = ddpg.get_action(state, eval=True)
     next_state, reward, terminated, truncated, info = env.step(action)
     done = terminated or truncated
     state = next_state
+    total_return += reward
+print(f"total return: {total_return}")
+env.close()
