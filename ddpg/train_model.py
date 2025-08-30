@@ -102,7 +102,7 @@ writer.close()
 
 env = gym.make(ENV_NAME, render_mode="human")
 
-env.reset()
+state, info = env.reset()
 total_return = 0
 while not done:
     action = ddpg.get_action(state, eval=True)
